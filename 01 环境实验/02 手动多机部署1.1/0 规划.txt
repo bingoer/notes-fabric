@@ -1,0 +1,14 @@
+# 系统
+VMware 
+centos 7  
+Net模式
+
+fabric 1.1 (同1.2 配置上差异较大)
+
+# IP 域名 关系
+192.168.2.110 orderer.example.com
+192.168.2.110 peer0.org1.example.com
+192.168.2.111 peer1.org1.example.com
+192.168.2.112 peer0.org2.example.com
+192.168.2.113 peer1.org2.example.com
+

@@ -1,0 +1,62 @@
+cd ~/soft/kafka_2.12-1.1.1
+
+#### kafka启动
+-- 192.168.2.201
+-- 192.168.2.202
+-- 192.168.2.203
+
+ 启动kafka
+./bin/kafka-server-start.sh config/server.properties
+
+
+
+#### kafka常用操作命令
+1 查看当前服务器中的所有topic
+  --zookeeper master:2181指定zookeeper
+  bin/kafka-topics.sh --list --zookeeper  zk1:12181
+
+2 :创建topic。
+  --partitions 3，指定三个分区。--replication-factor 1指定备份的副本数量。--topic topicTest，指定topic的名称。
+  bin/kafka-topics.sh --create --zookeeper zk1:12181 --replication-factor 1 --partitions 3 --topic topicTest
+
+3  删除topic
+  bin/kafka-topics.sh --delete --zookeeper zk1:12181 --topic topicTest
+  注意：需要server.properties中设置delete.topic.enable=true否则只是标记删除或者直接重启。
+
+4 通过shell命令发送消息。生产者。
+  --broker-list master:9092
+  bin/kafka-console-producer.sh --broker-list master:9092 --topic topicTest
+
+5 通过shell消费消息。消费者。
+  --from-beginning从最开始消费。
+  bin/kafka-console-consumer.sh --zookeeper master:12181 --from-beginning --topic topicTest
+
+6 查看消费位置
+    bin/kafka-run-class.sh kafka.tools.ConsumerOffsetChecker --zookeeper master:2181 --group testGroup
+
+7 查看某个Topic的详情
+    bin/kafka-topics.sh --topic topicTest --describe --zookeeper master:2181
+
+
+
+
+#### 操作实例
+1 创建主题
+ bin/kafka-topics.sh --create --zookeeper zk1:12181 --replication-factor 3 --partitions 1 --topic order
+
+2 查看主题 
+bin/kafka-topics.sh --list --zookeeper zk1:12181
+
+3 消息发送
+#启动生产者
+bin/kafka-console-producer.sh --broker-list zk1:9092 --topic order
+
+#启动消费者
+bin/kafka-console-consumer.sh --zookeeper zk1:12181 --from-beginning --topic order
+
+4 查看分区情况
+bin/kafka-topics.sh --describe --zookeeper zk1:12181 --topic order
+
+
+
+

@@ -1,0 +1,374 @@
+
+-------------------- alone1org1peer
+--前期准备 具体见文件
+1 configtx.yaml
+2 crypto-config.yaml
+3 docker-compose-orderer.yaml
+4 docker-compose-peer.yaml
+5 合约helloworld
+
+
+
+cd /home/gopath/src/github.com/hyperledger/fabric/deploy/alone1org1peer
+cd /home/gopath/src/github.com/hyperledger/fabric/examples3/
+
+--生成一个机构加密证书
+../bin/cryptogen generate --config=./crypto-config.yaml
+
+
+--生成交易
+mkdir channel-artifacts
+export FABRIC_CFG_PATH=$PWD
+export CHANNEL_NAME=mychannel
+
+-产生创世块
+#正确
+../bin/configtxgen -profile OneOrgsOrdererGenesis -outputBlock ./channel-artifacts/genesis.block 
+#错误 -channelID $CHANNEL_NAME  为多余
+#../bin/configtxgen -profile OneOrgsOrdererGenesis -outputBlock ./channel-artifacts/genesis.block -channelID $CHANNEL_NAME
+
+
+#产生channel配置
+../bin/configtxgen -profile OneOrgsChannel -outputCreateChannelTx ./channel-artifacts/channel.tx -channelID $CHANNEL_NAME
+#机构1 AnchorPeer配置
+../bin/configtxgen -profile OneOrgsChannel -outputAnchorPeersUpdate ./channel-artifacts/Org1MSPanchors.tx -channelID $CHANNEL_NAME -asOrg Org1MSP 
+
+
+--启动节点
+docker-compose -f docker-compose-peer.yaml up -d
+
+--查看docker 
+docker exec -it orderer.example.com bash
+docker exec -it peer0.org1.example.com bash
+docker exec -it cli bash
+
+
+
+-------------------- 创建channel
+docker exec -it cli bash
+
+
+
+--创建并加入Channel
+export CHANNEL_NAME=mychannel
+export ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+peer channel create -o orderer.example.com:7050 -c $CHANNEL_NAME -f ./channel-artifacts/channel.tx --tls --cafile $ORDERER_CA 
+
+
+
+
+--org1加入Channel (peer0.org1.example.com)
+export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+export CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+peer channel join -b mychannel.block
+
+或者
+CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp CORE_PEER_ADDRESS=peer0.org1.example.com:7051 CORE_PEER_LOCALMSPID="Org1MSP" CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt peer channel join -b mychannel.block
+
+
+--org2加入Channel (peer0.org2.example.com)
+#export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp 
+#export CORE_PEER_ADDRESS=peer0.org2.example.com:7051 
+#export CORE_PEER_LOCALMSPID="Org2MSP" 
+#export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt 
+#peer channel join -b mychannel.block
+
+
+
+--更新锚节点配置
+export CHANNEL_NAME=mychannel
+export CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+peer channel update -o orderer.example.com:7050 -c $CHANNEL_NAME -f ./channel-artifacts/Org1MSPanchors.tx --tls --cafile $ORDERER_CA 
+
+
+
+
+--查看已创建的通道
+peer channel list
+
+
+-------------------- 合约部署 helloworld
+docker exec -it cli bash
+docker exec -it orderer.example.com bash
+docker exec -it peer0.org1.example.com bash
+$peer node start
+
+
+
+
+
+
+
+
+--准备hellowrold合约
+略 注意编码&路径
+
+
+--设置环境变量
+
+
+--部署chaincode
+export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+export CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+peer chaincode install -p github.com/hyperledger/fabric/examples/chaincode/go/helloworld/cmd -n hello -v 1.0 >&mylog.txt
+
+--查看已部署chaincode
+peer chaincode list --installed -C mychannel >&mylog.txt
+
+--实例化Chaincode
+export ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+export FABRIC_START_TIMEOUT=300
+peer chaincode instantiate -o orderer.example.com:7050 --tls  --cafile $ORDERER_CA -C mychannel -n hello -v 1.0 -c '{"Args":["a","helloworld!!!"]}' -P "OR ('Org1MSP.peer')"
+
+
+&&&& 遗留问题 合约vm
+2018-10-14 10:59:32.298 UTC [shim] userChaincodeStreamGetter -> ERRO 001 context deadline exceeded
+error trying to connect to local peer
+github.com/hyperledger/fabric/core/chaincode/shim.userChaincodeStreamGetter
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/shim/chaincode.go:111
+github.com/hyperledger/fabric/core/chaincode/shim.Start
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/shim/chaincode.go:150
+main.main
+	/chaincode/input/src/github.com/hyperledger/fabric/examples/chaincode/go/helloworld/cmd/main.go:19
+runtime.main
+	/opt/go/src/runtime/proc.go:198
+runtime.goexit
+	/opt/go/src/runtime/asm_amd64.s:2361
+
+
+
+--调用合约
+peer chaincode query -C mychannel -n hello -c '{"Args":["get","a"]}'
+
+
+--更新合约
+export ORDERER_CA=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+peer chaincode invoke -o orderer.example.com:7050  --tls  --cafile $ORDERER_CA -C mychannel -n hello -c '{"Args":["set","a","helloworld good!!!!"]}' 
+peer chaincode invoke -o orderer.example.com:7050  --tls  --cafile $ORDERER_CA -C mychannel -n hello -c '{"Args":["set","b","test"]}' 
+
+
+--调用合约
+peer chaincode query -C mychannel -n hello -c '{"Args":["get","a"]}'
+peer chaincode query -C mychannel -n hello -c '{"Args":["get","b"]}'
+ 
+
+
+-------------------- alone1org1peer
+https://blog.csdn.net/alphags/article/details/79596658
+https://yq.aliyun.com/articles/633452
+https://hyperledger-fabric.readthedocs.io/en/release-1.2/prereqs.html
+https://hyperledger-fabric.readthedocs.io/en/release-1.2/build_network.html
+-------------------- 配置备份
+
+
+
+------------------------------------------------------------------------------------------------------------------------ 踩坑记录
+
+Error: failed to create deliver client: orderer client failed to connect to orderer.example.com:7050: failed to create new connection: context deadline exceeded
+>> 分析 服务不通
+--检测网络
+peer channel fetch 0 0_block.pb -o orderer.example.com:7050 -c "$ORDERER_SYSCHAN_ID" --tls --cafile $ORDERER_CA
+--原因 configtx.yuml 文件中 orderer配置遗漏
+
+
+Error: broadcast of config message from 172.24.0.1:59208 because of error: Failed to reach implicit threshold of 1 sub-policies, required 1 remaining: permission denied
+#错误 -channelID $CHANNEL_NAME  为多余
+#../bin/configtxgen -profile OneOrgsOrdererGenesis -outputBlock ./channel-artifacts/genesis.block -channelID $CHANNEL_NAME
+
+
+
+Error: proposal failed (err: rpc error: code = Unavailable desc = transport is closing)
+2018-10-11 17:20:31.406 UTC [common/deliver] Handle -> WARN 337 Error reading from 172.26.0.4:40978: rpc error: code = Canceled desc = context canceled
+#peer channel join -b mychannel.block
+--说明你已经加入到该渠道上了，并且有自己的账本了，不需要再重复执行该命令
+nc -w 3 -v 192.168.44.138 7050
+
+
+
+Error: Failed sending proposal, got rpc error: code = Unavailable desc = transport is closing
+2018-10-11 13:49:16.851 UTC [grpc] Printf -> DEBU 4d9 grpc: Server.Serve failed to complete security handshake from "172.26.0.4:60934": tls: first record does not look like a TLS handshake
+--缺少配置项   peer0.org1.example.com:
+ - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052
+
+
+##链码初始化出错  peer chaincode instantiate -o orderer.example.com:7050 --tls --cafile $ORDERER_CA -C mychannel -n hello -v 1.0 -c '{"Args":["a","helloworld!!!"]}' -P "OR ('Org1MSP.peer')"
+ cli -- Error: could not assemble transaction, err Proposal response was not successful,  error code 500, msg failed to execute transaction 84636a5c4c242fa157f0e2ab5227a9a88d1052b9553c96f9c8f265ca623a1eb3: timeout expired while starting chaincode hello:1.0 for transaction 84636a5c4c242fa157f0e2ab5227a9a88d1052b9553c96f9c8f265ca623a1eb3
+ peer -- failed to invoke chaincode name:"lscc" , error: timeout expired while starting chaincode mycc
+ -- 原因 node 未启动  代码被注释  command: peer node start
+ 
+
+
+
+https://stackoverflow.com/questions/46985604/hyperledger-fabric-peer-chaincode-instantiate-timeout
+##链码初始化出错2  peer chaincode instantiate -o orderer.example.com:7050 --tls --cafile $ORDERER_CA -C mychannel -n hello -v 1.0 -c '{"Args":["a","helloworld!!!"]}' -P "OR ('Org1MSP.peer')"
+
+Error: could not assemble transaction, err Proposal response was not successful, error code 500, msg failed to execute transaction 0b49b141a30988d34846d4b25b54f5bd73a54dafeea22d3efd2181b6a2102e53: error starting container: error starting container: API error (404): network byfn not found
+
+
+CORE_PEER_NETWORKID
+
+
+#合约实例化错误  创建容器成功 容器出错
+
+-- 链码容器错误 dev-peer0.org1.example.com-hello-1.0-e5be625fd680c513dba23b16138a2eef86c7c9b4f63802d6aa49f576740056ff
+2018-10-13 22:17:49.305 UTC [shim] userChaincodeStreamGetter -> ERRO 001 context deadline exceeded
+error trying to connect to local peer
+github.com/hyperledger/fabric/core/chaincode/shim.userChaincodeStreamGetter
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/shim/chaincode.go:111
+github.com/hyperledger/fabric/core/chaincode/shim.Start
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/shim/chaincode.go:150
+main.main
+	/chaincode/input/src/github.com/hyperledger/fabric/examples/chaincode/go/helloworld/cmd/main.go:19
+runtime.main
+	/opt/go/src/runtime/proc.go:198
+runtime.goexit
+	/opt/go/src/runtime/asm_amd64.s:2361
+
+
+
+--- cli 错误
+Error: could not assemble transaction, err Proposal response was not successful, error code 500, msg failed to execute transaction 148b2945496fec83bc9cc137187290b9c587d85731246779c121c7f02d062ea5: timeout expired while starting chaincode hello:1.0 for transaction 148b2945496fec83bc9cc137187290b9c587d85731246779c121c7f02d062ea5
+
+
+--- peer 错误
+2018-10-13 22:49:49.001 UTC [chaincode] start -> DEBU 496 stopping due to error while launching: timeout expired while starting chaincode hello:1.0 for transaction 148b2945496fec83bc9cc137187290b9c587d85731246779c121c7f02d062ea5
+github.com/hyperledger/fabric/core/chaincode.(*RuntimeLauncher).start
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/runtime_launcher.go:106
+github.com/hyperledger/fabric/core/chaincode.(*RuntimeLauncher).Launch
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/runtime_launcher.go:58
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Launch
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:117
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Invoke
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:227
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Execute
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:179
+github.com/hyperledger/fabric/core/endorser.(*SupportImpl).Execute
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/support.go:131
+github.com/hyperledger/fabric/core/endorser.(*Endorser).callChaincode
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:173
+github.com/hyperledger/fabric/core/endorser.(*Endorser).SimulateProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:287
+github.com/hyperledger/fabric/core/endorser.(*Endorser).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:501
+github.com/hyperledger/fabric/core/handlers/auth/filter.(*expirationCheckFilter).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/handlers/auth/filter/expiration.go:61
+github.com/hyperledger/fabric/core/handlers/auth/filter.(*filter).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/handlers/auth/filter/filter.go:31
+github.com/hyperledger/fabric/protos/peer._Endorser_ProcessProposal_Handler
+	/opt/gopath/src/github.com/hyperledger/fabric/protos/peer/peer.pb.go:112
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).processUnaryRPC
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:923
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).handleStream
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:1148
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).serveStreams.func1.1
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:637
+runtime.goexit
+	/opt/go/src/runtime/asm_amd64.s:2361
+2018-10-13 22:49:49.001 UTC [container] lockContainer -> DEBU 497 waiting for container(hello-1.0) lock
+2018-10-13 22:49:49.001 UTC [container] lockContainer -> DEBU 498 got container (hello-1.0) lock
+2018-10-13 22:49:49.004 UTC [dockercontroller] stopInternal -> DEBU 499 Stop container dev-peer0.org1.example.com-hello-1.0(Container not running: dev-peer0.org1.example.com-hello-1.0)
+2018-10-13 22:49:49.013 UTC [dockercontroller] stopInternal -> DEBU 49a Kill container dev-peer0.org1.example.com-hello-1.0 (Container not running: dev-peer0.org1.example.com-hello-1.0)
+2018-10-13 22:49:49.036 UTC [dockercontroller] stopInternal -> DEBU 49b Removed container dev-peer0.org1.example.com-hello-1.0
+2018-10-13 22:49:49.036 UTC [container] unlockContainer -> DEBU 49c container lock deleted(hello-1.0)
+2018-10-13 22:49:49.036 UTC [chaincode] Deregister -> DEBU 49d deregister handler: hello:1.0
+2018-10-13 22:49:49.036 UTC [chaincode] Launch -> ERRO 49e start failed: timeout expired while starting chaincode hello:1.0 for transaction 148b2945496fec83bc9cc137187290b9c587d85731246779c121c7f02d062ea5
+github.com/hyperledger/fabric/core/chaincode.(*RuntimeLauncher).start
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/runtime_launcher.go:106
+github.com/hyperledger/fabric/core/chaincode.(*RuntimeLauncher).Launch
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/runtime_launcher.go:58
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Launch
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:117
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Invoke
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:227
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Execute
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:179
+github.com/hyperledger/fabric/core/endorser.(*SupportImpl).Execute
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/support.go:131
+github.com/hyperledger/fabric/core/endorser.(*Endorser).callChaincode
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:173
+github.com/hyperledger/fabric/core/endorser.(*Endorser).SimulateProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:287
+github.com/hyperledger/fabric/core/endorser.(*Endorser).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:501
+github.com/hyperledger/fabric/core/handlers/auth/filter.(*expirationCheckFilter).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/handlers/auth/filter/expiration.go:61
+github.com/hyperledger/fabric/core/handlers/auth/filter.(*filter).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/handlers/auth/filter/filter.go:31
+github.com/hyperledger/fabric/protos/peer._Endorser_ProcessProposal_Handler
+	/opt/gopath/src/github.com/hyperledger/fabric/protos/peer/peer.pb.go:112
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).processUnaryRPC
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:923
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).handleStream
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:1148
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).serveStreams.func1.1
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:637
+runtime.goexit
+	/opt/go/src/runtime/asm_amd64.s:2361
+2018-10-13 22:49:49.036 UTC [endorser] callChaincode -> DEBU 49f [mychannel][148b2945496fec83bc9cc137187290b9c587d85731246779c121c7f02d062ea5] Exit
+2018-10-13 22:49:49.036 UTC [endorser] SimulateProposal -> ERRO 4a0 [mychannel][148b2945] failed to invoke chaincode name:"lscc" , error: timeout expired while starting chaincode hello:1.0 for transaction 148b2945496fec83bc9cc137187290b9c587d85731246779c121c7f02d062ea5
+github.com/hyperledger/fabric/core/chaincode.(*RuntimeLauncher).start
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/runtime_launcher.go:106
+github.com/hyperledger/fabric/core/chaincode.(*RuntimeLauncher).Launch
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/runtime_launcher.go:58
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Launch
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:117
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Invoke
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:227
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Execute
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:179
+github.com/hyperledger/fabric/core/endorser.(*SupportImpl).Execute
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/support.go:131
+github.com/hyperledger/fabric/core/endorser.(*Endorser).callChaincode
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:173
+github.com/hyperledger/fabric/core/endorser.(*Endorser).SimulateProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:287
+github.com/hyperledger/fabric/core/endorser.(*Endorser).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:501
+github.com/hyperledger/fabric/core/handlers/auth/filter.(*expirationCheckFilter).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/handlers/auth/filter/expiration.go:61
+github.com/hyperledger/fabric/core/handlers/auth/filter.(*filter).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/handlers/auth/filter/filter.go:31
+github.com/hyperledger/fabric/protos/peer._Endorser_ProcessProposal_Handler
+	/opt/gopath/src/github.com/hyperledger/fabric/protos/peer/peer.pb.go:112
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).processUnaryRPC
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:923
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).handleStream
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:1148
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).serveStreams.func1.1
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:637
+runtime.goexit
+	/opt/go/src/runtime/asm_amd64.s:2361
+failed to execute transaction 148b2945496fec83bc9cc137187290b9c587d85731246779c121c7f02d062ea5
+github.com/hyperledger/fabric/core/chaincode.(*ChaincodeSupport).Execute
+	/opt/gopath/src/github.com/hyperledger/fabric/core/chaincode/chaincode_support.go:181
+github.com/hyperledger/fabric/core/endorser.(*SupportImpl).Execute
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/support.go:131
+github.com/hyperledger/fabric/core/endorser.(*Endorser).callChaincode
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:173
+github.com/hyperledger/fabric/core/endorser.(*Endorser).SimulateProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:287
+github.com/hyperledger/fabric/core/endorser.(*Endorser).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/endorser/endorser.go:501
+github.com/hyperledger/fabric/core/handlers/auth/filter.(*expirationCheckFilter).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/handlers/auth/filter/expiration.go:61
+github.com/hyperledger/fabric/core/handlers/auth/filter.(*filter).ProcessProposal
+	/opt/gopath/src/github.com/hyperledger/fabric/core/handlers/auth/filter/filter.go:31
+github.com/hyperledger/fabric/protos/peer._Endorser_ProcessProposal_Handler
+	/opt/gopath/src/github.com/hyperledger/fabric/protos/peer/peer.pb.go:112
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).processUnaryRPC
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:923
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).handleStream
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:1148
+github.com/hyperledger/fabric/vendor/google.golang.org/grpc.(*Server).serveStreams.func1.1
+	/opt/gopath/src/github.com/hyperledger/fabric/vendor/google.golang.org/grpc/server.go:637
+runtime.goexit
+	/opt/go/src/runtime/asm_amd64.s:2361
+
+
+
+------------------------------------------------------------------------------------------------------------------------ 踩坑记录

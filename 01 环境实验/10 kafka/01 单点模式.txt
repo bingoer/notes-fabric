@@ -1,0 +1,79 @@
+#### kafka安装 
+--192.168.2.200
+1 下载kafka 
+wget http://mirror.bit.edu.cn/apache/kafka/1.1.1/kafka_2.12-1.1.1.tgz
+tar -xvf kafka_2.12-1.1.1.tgz
+cd kafka_2.12-1.1.1/
+
+
+
+2 安装java
+yum install -y java-1.8.0-openjdk
+java -version
+#openjdk version "1.8.0_181"
+
+
+
+
+3 修改config/server.properties
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 文件末尾加入
+advertised.listeners=PLAINTEXT://kafka0:9092
+
+# 默认为false
+unclean.leader.election.enable = false     
+
+# 根据kafka的节点数设置，需要小于备份数
+# 意思完成了“指定数量”的备份后，写入才返回成功
+min.insync.replicas = 1                    
+
+# 数据备份数
+default.replication.factor = 1             
+
+# 需要大于创世块中设置的 Orderer.AbsoluteMaxBytes
+# 注意不要超过 socket.request.max.bytes(100M)
+# 这里设置的是10M
+message.max.bytes = 10000120                
+                                           
+# 需要大于创世块中设置的 Orderer.AbsoluteMaxBytes
+# 注意不要超过 socket.request.max.bytes(100M)
+# 这里设置的是10M
+replica.fetch.max.bytes = 10485760
+
+                                           
+# 当前orderer不支持kafka log，需要关闭这个功能
+log.retention.ms = -1                      
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+
+
+
+
+cd ~/soft/kafka_2.12-1.1.1
+## 启动kafka(单节点模式)
+1 启动kafka自带的zookeeper
+./bin/zookeeper-server-start.sh config/zookeeper.properties 
+
+2 启动kafka
+./bin/kafka-server-start.sh config/server.properties
+
+
+## 测试kafka
+1 创建名为`test`的topic
+./bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test
+
+
+2 查看topic
+./bin/kafka-topics.sh --list --zookeeper localhost:2181
+
+
+3 启动生产者，并输入任意字符
+./bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test
+
+
+4 启动消费者，接收到生产者的输入
+./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
+
+
+

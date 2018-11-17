@@ -1,0 +1,146 @@
+1 系统规划
+-- 192.168.2.201
+-- 192.168.2.202
+-- 192.168.2.203
+
+
+vi /etc/hosts
+^^^^^^^^^^^^^^
+192.168.2.201 kafka1
+192.168.2.202 kafka2
+192.168.2.203 kafka3
+^^^^^^^^^^^^^^
+
+
+
+2 前置条件
+  zk集群已搭建
+
+
+
+
+#### kafka安装 
+-- 192.168.2.201
+-- 192.168.2.202
+-- 192.168.2.203
+
+1 下载kafka 
+wget http://mirror.bit.edu.cn/apache/kafka/1.1.1/kafka_2.12-1.1.1.tgz
+tar -xvf kafka_2.12-1.1.1.tgz
+cd kafka_2.12-1.1.1/
+
+
+2 配置kafka
+修改config/server.properties
+
+
+cd /opt/kafka/kafka_2.12-1.1.1/config/
+vi server.config
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+#broker的全局唯一的编号，不可以重复
+broker.id=1 
+
+#用来监听链接的端口，producer或者consumer将在此端口建立连接
+port=9092
+ 
+#处理网络请求的线程数量 
+num.network.threads=3
+
+#用来处理磁盘Io的线程数量 
+num.io.threads=8  
+
+#发送套接字的缓冲区大小
+socket.send.buffer.bytes=102400
+
+#接受套接字的缓冲区的大小
+socket.receive.buffer.bytes=102400
+
+#请求套接字的缓冲区大小 
+socket.request.max.bytes=104857600  
+
+#kafka运行日志存放的路径
+log.dirs=/tmp/kafka-logs  
+
+#topic在当前broker上的分片个数
+num.partitions=2  
+
+#用来恢复和清理data下数据的线程数量
+num.recovery.threads.per.data.dir=1
+
+#segment文件保留的最长时间，超时将被删除
+log.retention.hours=168  
+
+#滚动生成新的segment文件的最大时间
+log.roll.hours=168
+
+#topic的分区是以一堆segment文件存储的，这个控制每个segment的大小，会被topic创建时的指定参数覆盖
+log.segment.bytes=536870912  
+
+#文件大小检查的周期时间，是否处罚 log.cleanup.policy中设置的策略
+log.retention.check.interval.ms=60000 
+
+#是否开启日志清理 
+log.cleaner.enable=false  
+
+#zookeeper集群的地址，可以是多个，多个之间用逗号分割 hostname1:port1,hostname2:port2,hostname3:port3
+#zookeeper.connect=localhost:2181  
+zookeeper.connect=zk1:12181,zk2:12181,zk3:12181
+
+#ZooKeeper的连接超时时间
+zookeeper.connection.timeout.ms=1000000
+
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+注：
+1 broker.id 每个节点都不一样
+	-- 192.168.2.201
+	broker.id=1 
+	-- 192.168.2.202
+	broker.id=2 
+	-- 192.168.2.203
+	broker.id=3 
+
+
+2 注意 zookeeper.connect 配置
+
+
+
+
+#### kafka启动
+cd ~/soft/kafka_2.12-1.1.1
+
+-- 192.168.2.201
+-- 192.168.2.202
+-- 192.168.2.203
+
+ 启动kafka
+./bin/kafka-server-start.sh config/server.properties
+
+
+
+
+
+
+#### kafka测试
+cd ~/soft/kafka_2.12-1.1.1
+
+1 创建名为`test`的topic
+./bin/kafka-topics.sh --create --zookeeper localhost:2181 --replication-factor 1 --partitions 1 --topic test
+
+
+2 查看topic
+./bin/kafka-topics.sh --list --zookeeper localhost:2181
+
+
+3 启动生产者，并输入任意字符
+./bin/kafka-console-producer.sh --broker-list localhost:9092 --topic test
+
+
+4 启动消费者，接收到生产者的输入
+./bin/kafka-console-consumer.sh --bootstrap-server localhost:9092 --topic test --from-beginning
+
+
+
+
+
+https://www.cnblogs.com/biehongli/p/7767710.html

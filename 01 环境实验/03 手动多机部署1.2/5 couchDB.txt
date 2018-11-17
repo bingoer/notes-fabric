@@ -1,0 +1,153 @@
+
+#### couchDB安装
+--192.168.2.120
+--192.168.2.121
+--192.168.2.122
+--192.168.2.123
+
+1 安装
+yum -y install epel-release 
+
+
+> vi /etc/yum.repos.d/apache-couchdb.repo
+---------------------------
+[bintray--apache-couchdb-rpm]
+name=bintray--apache-couchdb-rpm
+baseurl=http://apache.bintray.com/couchdb-rpm/el$releasever/$basearch/
+gpgcheck=0
+repo_gpgcheck=0
+enabled=1
+---------------------------
+
+> yum -y install couchdb
+
+
+
+2 启动服务
+systemctl start couchdb
+systemctl enable couchdb
+systemctl status couchdb
+netstat -plntu
+
+
+3 验证
+--crul请求
+$ curl 127.0.0.1:5984
+$ curl 192.168.2.120:5984
+$ telnet 192.168.2.120 5984
+
+
+
+
+#### couchDB 控制台
+
+> cd /opt/couchdb/etc/
+> vi local.ini
+---------------------------
+[chttpd]
+port = 5984
+bind_address = 0.0.0.0
+
+[admins]
+admin = password
+---------------------------
+
+systemctl restart couchdb
+
+--访问
+http://192.168.2.120:5984/_utils/
+http://192.168.2.121:5984/_utils/
+http://192.168.2.122:5984/_utils/
+http://192.168.2.123:5984/_utils/
+
+--关闭防火墙
+firewall-cmd --zone=public --add-port=5984/tcp --permanent
+firewall-cmd --reload
+
+
+-- 配置管理账户
+1 'Admin Party'  
+2 Create Admin 
+  
+
+
+
+#### couchDB 集成fabric core.yaml
+
+ledger:
+  blockchain:
+  state:
+    #stateDatabase: goleveldb
+    stateDatabase: CouchDB
+    couchDBConfig:
+       couchDBAddress: 127.0.0.1:5984
+       username: admin
+       password: password
+       maxRetries: 3
+       maxRetriesOnStartup: 10
+       requestTimeout: 35s
+       queryLimit: 10000
+  history:
+    enableHistoryDatabase: true
+
+
+
+
+
+
+######################################################################################################
+
+cd ~/fabric-deploy/
+
+##core.yaml 更新
+cp config-couchdb/core.yaml peer0.org1.example.com/core.yaml
+cp config-couchdb/core.yaml peer1.org1.example.com/core.yaml
+cp config-couchdb/core.yaml peer0.org2.example.com/core.yaml
+cp config-couchdb/core.yaml peer1.org2.example.com/core.yaml
+
+
+
+sed -i "s/peer0.org1.example.com/peer1\.org1\.example.com/g" peer1.org1.example.com/core.yaml
+sed -i "s/peer0.org1.example.com/peer0\.org2\.example.com/g" peer0.org2.example.com/core.yaml
+sed -i "s/Org1MSP/Org2MSP/g" peer0.org2.example.com/core.yaml
+sed -i "s/peer0.org1.example.com/peer1\.org2\.example.com/g" peer1.org2.example.com/core.yaml
+sed -i "s/Org1MSP/Org2MSP/g" peer1.org2.example.com/core.yaml
+
+
+cp peer0.org1.example.com/core.yaml  Admin\@org1.example.com/
+cp peer0.org1.example.com/core.yaml  User1\@org1.example.com/
+cp peer0.org2.example.com/core.yaml  Admin\@org2.example.com/
+cp peer0.org1.example.com/core.yaml  User1\@org2.example.com/
+
+
+--192.168.2.120
+cd ~/fabric-deploy/
+scp -r peer0.org1.example.com/core.yaml root@192.168.2.120:/opt/app/fabric/peer/
+scp -r peer1.org1.example.com/core.yaml root@192.168.2.121:/opt/app/fabric/peer/
+scp -r peer0.org2.example.com/core.yaml root@192.168.2.122:/opt/app/fabric/peer/
+scp -r peer1.org2.example.com/core.yaml root@192.168.2.123:/opt/app/fabric/peer/
+
+
+
+######################################################################################################
+
+
+#### couchDB 集成fabric验证
+1 hello合约 更新数据
+2 hello合约 更新合约 并初始化数据
+
+见 [4 合约调度]
+
+
+#### 补充
+--关闭防火墙
+firewall-cmd --zone=public --add-port=5984/tcp --permanent
+firewall-cmd --reload
+
+
+
+--直接关闭防火墙
+systemctl stop firewalld.service           #停止firewall
+systemctl disable firewalld.service     #禁止firewall开机启动
+
+

@@ -1,0 +1,56 @@
+
+#### 系统规划
+1 目标规划
+发版机
+192.168.2.10 orderer.example.com        
+192.168.2.11 peer0.org1.example.com  
+192.168.2.12 peer1.org1.example.com  00:50:56:31:81:88
+192.168.2.13 peer0.org2.example.com  00:50:56:3C:CF:88
+
+
+2 其他
+共识算法 solo
+
+vi /etc/sysconfig/network-scripts/ifcfg-ens33
+
+
+
+#### 准备工作
+1 下载部署代码
+
+git clone --branch=Fabric1.1.x --depth=0  https://github.com/introclass/hyperledger-fabric-ansible.git
+cd hyperledger-fabric-ansible
+
+
+2 下载工程代码
+
+
+
+
+
+#### 
+
+
+
+
+
+
+#### 
+
+
+
+
+
+
+
+#### 
+
+
+
+
+
+
+
+
+来源
+https://www.lijiaocn.com/%E9%A1%B9%E7%9B%AE/2018/07/09/hyperledger-fabric-ansible-deploy.html

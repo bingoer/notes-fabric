@@ -1,0 +1,41 @@
+
+1 准备
+--下载安装包
+wget http://download.redis.io/releases/redis-3.2.10.tar.gz
+--安装依赖
+yum install -y gcc-c++ tcl
+
+2 安装
+--解压编译
+tar -zxvf redis-3.2.10.tar.gz -C /usr/local/
+cd /usr/local/redis-3.2.10
+make && make install
+
+--修改配置文件
+cd /usr/local/redis-3.2.10
+vi redis.conf
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+daemonize yes
+protected-mode no
+dir /usr/local/redis-3.2.10/
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+3 启动redis
+cd /usr/local/redis-3.2.10
+redis-server redis.conf
+
+
+4 客户端测试链接
+--连接
+redis-cli -h 127.0.0.1 -p 6379
+127.0.0.1:6379> ping
+                                                                                   
+-- 测试
+127.0.0.1:6379> set hello "hello world!"
+127.0.0.1:6379> get hello
+
+
+
+
+
+

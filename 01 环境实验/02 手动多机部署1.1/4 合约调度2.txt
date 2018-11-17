@@ -1,0 +1,83 @@
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ example02
+
+
+####  合约安装
+cd ~/fabric-deploy/
+
+--下载合约
+go get github.com/hello/fabric-chaincode-example/demo
+
+
+
+--合约打包
+cd Admin\@org1.example.com/
+./useAdmin0Org1.sh chaincode package hello-pack.out -n hello -v 0.1 -s -S -p github.com/hello/fabric-chaincode-example/demo
+./useAdmin0Org1.sh chaincode signpackage hello-pack.out signed-hello-pack.out
+--安装合约
+./useAdmin0Org1.sh chaincode install ./signed-hello-pack.out
+--查看已安装合约
+./useAdmin0Org1.sh chaincode list   --installed
+--安装合约
+./useAdmin1Org1.sh chaincode install ./signed-hello-pack.out
+--查看已安装合约
+./useAdmin1Org1.sh chaincode list   --installed
+--复制到org2
+cp signed-hello-pack.out  ../Admin\@org2.example.com/
+
+
+
+
+cd ../Admin\@org2.example.com/
+--安装合约
+./useAdmin0Org2.sh chaincode install ./signed-hello-pack.out
+--查看已安装合约
+./useAdmin0Org2.sh chaincode list   --installed
+--安装合约
+./useAdmin1Org2.sh chaincode install ./signed-hello-pack.out
+--查看已安装合约
+./useAdmin1Org2.sh chaincode list   --installed
+
+
+
+
+####  合约初始化
+
+--合约初始化（需要且只需要进行一次初始化，只能由签署合约的用户进行初始化）
+cd Admin\@org1.example.com/
+./useAdmin0Org1.sh chaincode instantiate -o orderer.example.com:7050 --tls true --cafile ./tlsca.example.com-cert.pem -C mychannel -n hello -v 0.1 -c '{"Args":["init"]}' -P "OR('Org1MSP.member','Org2MSP.member')"
+
+
+
+####  合约调用
+--合约调用（更新）
+cd Admin\@org2.example.com/
+./useAdmin0Org2.sh chaincode invoke -o orderer.example.com:7050  --tls true --cafile ./tlsca.example.com-cert.pem -C mychannel -n hello -c '{"Args":["write","key1","aaabbb"]}'
+
+
+--合约调用2
+
+cd Admin\@org1.example.com/
+./useAdmin0Org1.sh chaincode query -C mychannel -n hello -c '{"Args":["query","key1"]}'
+./useAdmin1Org1.sh chaincode query -C mychannel -n hello -c '{"Args":["query","key1"]}'
+
+
+cd Admin\@org2.example.com/
+./useAdmin0Org2.sh chaincode query -C mychannel -n hello -c '{"Args":["query","key1"]}'
+./useAdmin1Org2.sh chaincode query -C mychannel -n hello -c '{"Args":["query","key1"]}'
+
+
+cd User1\@org1.example.com/
+./useUser0Org1.sh chaincode query -C mychannel -n hello -c '{"Args":["query","key1"]}'
+./useUser1Org1.sh chaincode query -C mychannel -n hello -c '{"Args":["query","key1"]}'
+
+cd User1\@org2.example.com/
+./useUser0Org2.sh chaincode query -C mychannel -n hello -c '{"Args":["query","key1"]}'
+./useUser1Org2.sh chaincode query -C mychannel -n hello -c '{"Args":["query","key1"]}'
+
+
+
+
+
+

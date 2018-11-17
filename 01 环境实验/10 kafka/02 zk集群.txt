@@ -1,0 +1,111 @@
+1 系统规划
+-- 192.168.2.201
+-- 192.168.2.202
+-- 192.168.2.203
+
+
+vi /etc/hosts
+^^^^^^^^^^^^^^
+192.168.2.201 zk1
+192.168.2.202 zk2
+192.168.2.203 zk3
+^^^^^^^^^^^^^^
+
+
+2 安装java
+yum install -y java-1.8.0-openjdk
+java -version
+
+
+
+3 下载zk
+-- 192.168.2.201
+-- 192.168.2.202
+-- 192.168.2.203
+
+mkdir -p /opt/zookeeper/zkdata    //存放快照日志
+mkdir -p /opt/zookeeper/zkdatalog // 存放事物日志
+
+cd /opt/zookeeper/
+wget http://mirrors.shu.edu.cn/apache/zookeeper/zookeeper-3.4.13/zookeeper-3.4.13.tar.gz
+或
+cp ~/soft/zookeeper-3.4.13.tar.gz /opt/zookeeper/
+
+cd /opt/zookeeper/
+tar -zxvf zookeeper-3.4.13.tar.gz
+
+
+
+
+4 修改zk配置文件
+cd /opt/zookeeper/zookeeper-3.4.13/conf
+cp zoo_sample.cfg zoo.cfg
+
+vim zoo.zfg
+^^^^^^^^^^^^^^
+tickTime=2000
+initLimit=10
+syncLimit=5
+dataDir=/opt/zookeeper/zkdata
+dataLogDir=/opt/zookeeper/zkdatalog
+clientPort=12181
+server.1=zk1:12888:13888
+server.2=zk2:12888:13888
+server.3=zk3:12888:13888
+^^^^^^^^^^^^^^
+
+
+
+
+5 修改系统参数
+-- 192.168.2.201
+-- 192.168.2.202
+-- 192.168.2.203
+
+vim /etc/profile
+^^^^^^^^^^^^^^
+export ZK_HOME=/opt/zookeeper/zookeeper-3.4.13
+export PATH=$PATH:$ZK_HOME/bin
+^^^^^^^^^^^^^^
+source /etc/profile
+
+
+
+6 修改配置
+-- 192.168.2.201
+echo "1" > /opt/zookeeper/zkdata/myid
+
+-- 192.168.2.202
+echo "2" > /opt/zookeeper/zkdata/myid
+
+-- 192.168.2.203
+echo "3" > /opt/zookeeper/zkdata/myid
+
+
+
+
+
+7 使用zookeeper
+cd /opt/zookeeper/zookeeper-3.4.13/bin/
+
+// 启动服务 (注意！三台虚拟机都要进行该操作)
+./zkServer.sh start
+// 检查服务器状态
+./zkServer.sh status
+//关闭zookeeper 服务：
+./zkServer.sh stop
+//重启zookeeper 服务：
+./zkServer.sh restart
+
+
+
+
+
+--其他
+查看防火墙运行状态:   firewall-cmd --state
+关闭防火墙:   systemctl stop firewalld.service
+永久关闭防火墙:  systemctl disable firewalld.service
+service network restart
+
+
+https://www.jianshu.com/p/ea138dba2d36

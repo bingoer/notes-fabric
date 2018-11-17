@@ -1,0 +1,20 @@
+#### 系统规划
+1 目标规划  
+192.168.2.10 发版机
+
+
+联盟的二级域名为： example.com。
+组织一的域名为： member1.example.com
+组织二的域名为： member2.example.com
+组织一中部署了一个Orderer和两个Peer
+组织二没有部署Orderer参与共识，只部署一个Pee
+
+
+
+2 host配置
+orderer0.member1.example.com  192.168.2.11
+peer0.member1.example.com     192.168.2.11
+peer1.member1.example.com     192.168.2.12
+peer0.member2.example.com     192.168.2.13
+
+

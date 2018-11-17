@@ -1,0 +1,76 @@
+#### 下载Ansible脚本
+--192.168.2.10
+git clone --branch=Fabric1.1.x --depth=0  https://github.com/introclass/hyperledger-fabric-ansible.git
+cd hyperledger-fabric-ansible
+
+
+#### 目标机准备
+--192.168.2.11
+--192.168.2.12
+--192.168.2.13
+
+
+#镜像导入
+--导入镜像
+docker load < /data/fabric1.1/fabric-zookeeper-1.1.tar
+docker load < /data/fabric1.1/fabric-kafka-1.1.tar 
+docker load < /data/fabric1.1/fabric-ca-1.1.tar
+docker load < /data/fabric1.1/fabric-orderer-1.1.tar 
+docker load < /data/fabric1.1/fabric-peer-1.1.tar
+docker load < /data/fabric1.1/fabric-ccenv-1.1.tar
+docker load < /data/fabric1.1/fabric-baseos-1.1.tar
+
+
+--重命名
+docker tag  e62e0af39193 hyperledger/fabric-zookeeper:0.4.13
+docker tag  e62e0af39193 hyperledger/fabric-zookeeper:latest
+docker tag  4121ea662c47 hyperledger/fabric-kafka:0.4.13
+docker tag  4121ea662c47 hyperledger/fabric-kafka:latest
+docker tag  72617b4fa9b4 hyperledger/fabric-ca:1.1.0
+docker tag  6acf31e2d9a4 hyperledger/fabric-ca:latest
+docker tag  ce0c810df36a hyperledger/fabric-orderer:latest
+docker tag  ce0c810df36a hyperledger/fabric-orderer:x86_64-1.1.0
+docker tag  b023f9be0771 hyperledger/fabric-peer:latest
+docker tag  b023f9be0771 hyperledger/fabric-peer:x86_64-1.1.0
+docker tag  c8b4909d8d46 hyperledger/fabric-ccenv:x86_64-1.1.0
+docker tag  220e5cf3fb7f hyperledger/fabric-baseos:x86_64-0.4.6
+
+
+
+#解压压缩包
+mkdir -p output/example.com/
+cd output/example.com/
+tar -xvf hyperledger-fabric-linux-amd64-1.1.0.tar.gz
+
+
+
+
+#### 修改Ansible脚本
+--192.168.2.10
+1 目录 hyperledger-fabric-ansible-Fabric-1.1.x\inventories\example.com
+hosts	 (修改IP、域名)
+etc_hosts   (修改IP、域名)
+
+修改后的文件上传至 /root/fabric-deploy
+
+
+
+#### 发版机器准备
+--192.168.2.10
+1 创建目录 
+mkdir -p output/bin
+cd output/bin
+
+2 准备二进制文件
+tar -xvf hyperledger-fabric-linux-amd64-1.1.0.tar.gz
+
+
+
+3 执行脚本
+cd /root/fabric-deploy
+./prepare.sh example
+
+
+
+
+

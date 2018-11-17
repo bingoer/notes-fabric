@@ -1,0 +1,279 @@
+###### 下载二进制文件
+1 下载二进制文件
+wget https://nexus.hyperledger.org/content/repositories/releases/org/hyperledger/fabric/hyperledger-fabric/linux-amd64-1.2.0/hyperledger-fabric-linux-amd64-1.1.0.tar.gz
+wget https://nexus.hyperledger.org/content/repositories/releases/org/hyperledger/fabric/hyperledger-fabric/linux-amd64-1.2.0/hyperledger-fabric-linux-amd64-1.1.0.tar.gz.md5
+
+
+
+2 检验二进制文件包
+$ md5sum hyperledger-fabric-linux-amd64-1.2.0.tar.gz
+$ cat hyperledger-fabric-linux-amd64-1.2.0.tar.gz.md5
+
+
+3 解压fabric二进制文件
+mkdir ~/fabric-deploy
+cp hyperledger-fabric-linux-amd64-1.2.0.tar.gz ~/fabric-deploy
+cd ~/fabric-deploy
+tar -xvf hyperledger-fabric-linux-amd64-1.2.0.tar.gz
+
+
+
+###### 准备证书文件
+1 上传 cryptogen命令相关 
+  configtx.yaml、crypto-config.yaml 文件
+
+
+2 生成证书文件 (192.168.2.120)
+./bin/cryptogen generate --config=crypto-config.yaml --output ./certs
+
+
+3 查看生成的证书文件目录
+cd ./certs
+tree -L 4
+
+
+4 校验用户的证书
+cd ~/fabric-deploy/certs/ordererOrganizations/example.com/orderers/orderer.example.com/msp/
+openssl verify -CAfile ./cacerts/ca.example.com-cert.pem  admincerts/Admin\@example.com-cert.pem
+
+cd ~/fabric-deploy/certs/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/msp/
+openssl verify -CAfile ./cacerts/ca.org1.example.com-cert.pem  admincerts/Admin\@org1.example.com-cert.pem
+
+
+
+######################################################################################################
+
+###### 准备 orderer.example.com
+cd ~/fabric-deploy
+
+1 创建目录
+mkdir orderer.example.com
+
+2 复制证书
+cp bin/orderer orderer.example.com/
+cp -rf certs/ordererOrganizations/example.com/orderers/orderer.example.com/* orderer.example.com/
+
+3 准备配置文件
+cp orderer.yaml orderer.example.com/orderer.yaml
+
+4 创建数据文件夹
+mkdir orderer.example.com/data
+
+5 复制启动脚本
+cp sh/startorder.sh orderer.example.com/
+cp sh/stoporder.sh orderer.example.com/
+chmod u+x orderer.example.com/*.sh
+
+
+
+
+###### 准备 peer0.org1.example.com
+cd ~/fabric-deploy
+
+1 创建目录
+mkdir -p peer0.org1.example.com/data
+
+
+2 复制证书
+cp bin/peer peer0.org1.example.com/
+cp -rf certs/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/* peer0.org1.example.com/
+cp -rf certs/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/admincerts/* peer0.org1.example.com/msp/admincerts
+
+3 准备配置文件
+cp core.yaml peer0.org1.example.com/core.yaml
+
+
+4 复制启动脚本
+cp sh/startpeer.sh peer0.org1.example.com/
+cp sh/stoppeer.sh peer0.org1.example.com/
+chmod u+x peer0.org1.example.com/*.sh
+
+
+
+###### 准备 peer1.org1.example.com
+cd ~/fabric-deploy
+
+
+1 复制文件夹
+cp -rf peer0.org1.example.com/ peer1.org1.example.com/
+rm -rf peer1.org1.example.com/msp/
+rm -rf peer1.org1.example.com/tls/
+cp -rf certs/peerOrganizations/org1.example.com/peers/peer1.org1.example.com/*  peer1.org1.example.com/
+cp -rf certs/peerOrganizations/org1.example.com/users/User1@org1.example.com/msp/admincerts/* peer1.org1.example.com/msp/admincerts
+
+
+2 替换文件变量
+cp core.yaml peer1.org1.example.com/core.yaml
+sed -i "s/peer0.org1.example.com/peer1\.org1\.example.com/g" peer1.org1.example.com/core.yaml
+
+
+
+
+
+
+###### 准备 peer0.org2.example.com
+cd ~/fabric-deploy
+
+1 复制文件夹
+cp -rf peer0.org1.example.com/ peer0.org2.example.com/
+rm -rf peer0.org2.example.com/msp/
+rm -rf peer0.org2.example.com/tls/
+cp -rf certs/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/*  peer0.org2.example.com/
+cp -rf certs/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/admincerts/* peer0.org2.example.com/msp/admincerts
+
+
+2 替换文件变量
+cp core.yaml peer0.org2.example.com/core.yaml
+sed -i "s/peer0.org1.example.com/peer0\.org2\.example.com/g" peer0.org2.example.com/core.yaml
+sed -i "s/Org1MSP/Org2MSP/g" peer0.org2.example.com/core.yaml
+
+
+
+
+
+
+
+###### 准备 peer1.org2.example.com
+cd ~/fabric-deploy
+
+1 复制文件夹
+cp -rf peer0.org1.example.com/ peer1.org2.example.com/
+rm -rf peer1.org2.example.com/msp/
+rm -rf peer1.org2.example.com/tls/
+cp -rf certs/peerOrganizations/org2.example.com/peers/peer1.org2.example.com/*  peer1.org2.example.com/
+cp -rf certs/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/admincerts/* peer1.org2.example.com/msp/admincerts
+
+2 替换文件变量
+cp core.yaml peer1.org2.example.com/core.yaml
+sed -i "s/peer0.org1.example.com/peer1\.org2\.example.com/g" peer1.org2.example.com/core.yaml
+sed -i "s/Org1MSP/Org2MSP/g" peer1.org2.example.com/core.yaml
+
+
+
+
+######################################################################################################
+
+
+###### 准备 User Admin@org1.example.com
+cd ~/fabric-deploy
+
+
+1 创建目录
+mkdir Admin@org1.example.com
+
+
+2 复制证书
+cp -rf certs/peerOrganizations/org1.example.com/users/Admin\@org1.example.com/* Admin\@org1.example.com/
+cp peer0.org1.example.com/core.yaml  Admin\@org1.example.com/
+
+
+3 复制脚本
+cp bin/peer Admin\@org1.example.com/
+cp sh/useAdmin0Org1.sh Admin\@org1.example.com/
+cp sh/useAdmin1Org1.sh Admin\@org1.example.com/
+chmod u+x Admin\@org1.example.com/*.sh
+
+
+###### 准备 User User1@org1.example.com
+cd ~/fabric-deploy
+
+1 创建目录
+mkdir User1@org1.example.com
+cp -rf  Admin\@org1.example.com/* User1\@org1.example.com/
+rm -rf  User1\@org1.example.com/msp
+rm -rf  User1\@org1.example.com/tls
+
+
+2 复制证书
+#cp -rf certs/peerOrganizations/org1.example.com/users/Admin\@org1.example.com/* User1\@org1.example.com/
+cp -rf  certs/peerOrganizations/org1.example.com/users/User1\@org1.example.com/* User1\@org1.example.com/
+cp peer0.org1.example.com/core.yaml  User1\@org1.example.com/
+
+
+3 复制脚本
+cp bin/peer User1\@org1.example.com/
+cp sh/useUser0Org1.sh User1\@org1.example.com/
+cp sh/useUser1Org1.sh User1\@org1.example.com/
+chmod u+x User1\@org1.example.com/*.sh
+
+
+
+###### 准备 User Admin@org2.example.com
+cd ~/fabric-deploy
+
+1 创建目录
+mkdir Admin@org2.example.com
+
+
+2 复制证书
+cp -rf certs/peerOrganizations/org2.example.com/users/Admin\@org2.example.com/* Admin\@org2.example.com/
+cp peer0.org2.example.com/core.yaml  Admin\@org2.example.com/
+
+
+3 复制脚本
+cp bin/peer Admin\@org2.example.com/
+cp sh/useAdmin0Org2.sh Admin\@org2.example.com/
+cp sh/useAdmin1Org2.sh Admin\@org2.example.com/
+chmod u+x Admin\@org2.example.com/*.sh
+
+
+
+###### 准备 User User1@org2.example.com
+cd ~/fabric-deploy
+
+
+1 创建目录
+mkdir User1@org2.example.com
+
+
+2 复制证书
+cp -rf  certs/peerOrganizations/org2.example.com/users/User1\@org2.example.com/* User1\@org2.example.com/
+cp peer0.org1.example.com/core.yaml  User1\@org2.example.com/
+
+
+3 复制脚本
+cp bin/peer User1\@org2.example.com/
+cp sh/useUser0Org2.sh User1\@org2.example.com/
+cp sh/useUser1Org2.sh User1\@org2.example.com/
+chmod u+x User1\@org2.example.com/*.sh
+
+
+ 
+###################################################################################################### core.yaml 更新
+cd ~/fabric-deploy/
+
+##core.yaml 更新
+cp core.yaml peer0.org1.example.com/core.yaml
+
+cp core.yaml peer1.org1.example.com/core.yaml
+sed -i "s/peer0.org1.example.com/peer1\.org1\.example.com/g" peer1.org1.example.com/core.yaml
+
+
+cp core.yaml peer0.org2.example.com/core.yaml
+sed -i "s/peer0.org1.example.com/peer0\.org2\.example.com/g" peer0.org2.example.com/core.yaml
+sed -i "s/Org1MSP/Org2MSP/g" peer0.org2.example.com/core.yaml
+
+
+cp core.yaml peer1.org2.example.com/core.yaml
+sed -i "s/peer0.org1.example.com/peer1\.org2\.example.com/g" peer1.org2.example.com/core.yaml
+sed -i "s/Org1MSP/Org2MSP/g" peer1.org2.example.com/core.yaml
+
+
+cp peer0.org1.example.com/core.yaml  Admin\@org1.example.com/
+cp peer0.org1.example.com/core.yaml  User1\@org1.example.com/
+cp peer0.org2.example.com/core.yaml  Admin\@org2.example.com/
+cp peer0.org1.example.com/core.yaml  User1\@org2.example.com/
+
+
+--192.168.2.120
+cd ~/fabric-deploy/
+scp -r peer0.org1.example.com/* root@192.168.2.120:/opt/app/fabric/peer/
+scp -r peer1.org1.example.com/* root@192.168.2.121:/opt/app/fabric/peer/
+scp -r peer0.org2.example.com/* root@192.168.2.122:/opt/app/fabric/peer/
+scp -r peer1.org2.example.com/* root@192.168.2.123:/opt/app/fabric/peer/
+
+## 杀死进行
+ps -ef | grep peer | awk '{print $2}'| xargs kill -9
+
+######################################################################################################
+

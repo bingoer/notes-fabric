@@ -1,0 +1,117 @@
+
+
+#### 准备部署
+1 修改hosts
+--192.168.2.120
+--192.168.2.121
+--192.168.2.122
+--192.168.2.123
+^^^^^^^^^^^^^^
+192.168.2.200 kafka01
+192.168.2.120 orderer.example.com
+192.168.2.120 peer0.org1.example.com
+192.168.2.121 peer1.org1.example.com
+192.168.2.122 peer0.org2.example.com
+192.168.2.123 peer1.org2.example.com
+^^^^^^^^^^^^^^
+
+所有服务器时间同步
+ntpdate us.pool.ntp.org
+
+
+2 创建文件夹
+--192.168.2.120
+mkdir -p /opt/app/fabric/{orderer,peer}
+
+--192.168.2.121
+--192.168.2.122
+--192.168.2.123
+mkdir -p /opt/app/fabric/peer
+
+
+3 复制相关部署文件
+--192.168.2.120
+cd ~/fabric-deploy/
+scp -r orderer.example.com/* root@192.168.2.120:/opt/app/fabric/orderer/
+scp -r peer0.org1.example.com/* root@192.168.2.120:/opt/app/fabric/peer/
+scp -r peer1.org1.example.com/* root@192.168.2.121:/opt/app/fabric/peer/
+scp -r peer0.org2.example.com/* root@192.168.2.122:/opt/app/fabric/peer/
+scp -r peer1.org2.example.com/* root@192.168.2.123:/opt/app/fabric/peer/
+
+
+
+#### 生成创世区块
+--192.168.2.120
+
+1 生成创世区块
+cd ~/fabric-deploy/
+./bin/configtxgen -profile TwoOrgsOrdererGenesis -outputBlock ./genesisblock
+
+
+2 ./genesisblock 复制到order
+scp genesisblock root@192.168.2.120:/opt/app/fabric/orderer/
+
+
+
+#### 启动节点
+./orderer 2>&1 |tee order.log
+./peer node start 2>&1 |tee peer.log
+
+
+--192.168.2.120
+cd /opt/app/fabric/orderer/
+./startorder.sh &
+cd /opt/app/fabric/peer
+./startpeer.sh &
+
+--192.168.2.121
+--192.168.2.122
+--192.168.2.123 
+cd /opt/app/fabric/peer
+./startpeer.sh &
+
+
+
+#### 启动客户端
+--192.168.2.120
+cd ~/fabric-deploy/
+--复制脚本
+cp sh/useAdmin0Org1.sh Admin\@org1.example.com/
+cp sh/useAdmin1Org1.sh Admin\@org1.example.com/
+cp sh/useUser0Org1.sh User1\@org1.example.com/
+cp sh/useUser1Org1.sh User1\@org1.example.com/
+cp sh/useAdmin0Org2.sh Admin\@org2.example.com/
+cp sh/useAdmin1Org2.sh Admin\@org2.example.com/
+cp sh/useUser0Org2.sh User1\@org2.example.com/
+cp sh/useUser1Org2.sh User1\@org2.example.com/
+
+
+--查看节点状态
+cd ~/fabric-deploy/Admin@org1.example.com/
+./useAdmin0Org1.sh node status
+./useAdmin1Org1.sh node status
+
+cd ~/fabric-deploy/User1@org1.example.com/
+./useUser0Org1.sh node status
+./useUser1Org1.sh node status
+
+cd ~/fabric-deploy/Admin@org2.example.com/
+./useAdmin0Org2.sh node status
+./useAdmin1Org2.sh node status
+
+cd ~/fabric-deploy/User1@org2.example.com/
+./useUser0Org2.sh node status
+./useUser1Org2.sh node status
+
+
+
+
+
+#### 常见问题
+问题:-bash: ./startorder.sh: /bin/bash^M: 坏的解释器: 没有那个文件或目录
+解决:sed -i 's/\r$//' *.sh
+
+
+peer.chaincodeListenAddress is not set, using 192.168.2.123:7052
+
+

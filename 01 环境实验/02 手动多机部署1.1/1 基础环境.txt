@@ -1,0 +1,152 @@
+#### 操作系统安装
+1 安装 centos 7 
+略
+
+
+
+2 配置网络 
+vi /etc/sysconfig/network-scripts/ifcfg-ens33
+^^^^^^^^^^^^^^
+HWADDR=00:0C:29:F8:6C:60（这个可以在网络适配器查看）
+00:0C:29:D3:1D:AB
+ONBOOT=yes
+BOOTPROTO=static
+IPADDR=192.168.2.110  #设置IP地址
+BROADCAST=192.168.2.255  （前三位要和主机的ip地址一致，后一位为255）
+NETMASK=255.255.255.0
+GATEWAY=192.168.2.1
+DNS1=8.8.8.8  #设置主DNS
+DNS2=8.8.4.4  #设置备DNS
+
+
+
+DEFROUTE=yesroo
+PEERDNS=yes
+PEERROUTES=yes
+IPV4_FAILURE_FATAL=yes
+IPV6INIT=yes
+^^^^^^^^^^^^^^
+
+
+3 修改hosts
+^^^^^^^^^^^^^^
+192.168.2.110 fabric110
+^^^^^^^^^^^^^^
+
+
+
+
+
+
+#### 基础软件安装
+1 安装必要系统工具：
+sudo yum install -y yum-utils device-mapper-persistent-data lvm2 tree epel-release jq git gcc
+sudo yum install -y curlapt install curl
+
+
+2 添加软件源信息：
+sudo yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo yum-config-manager --add-repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+sudo yum makecache fast
+
+
+3 安装 Docker-ce
+-下载地址
+https://download.docker.com/linux/centos/7/x86_64/stable/Packages/
+选择最新版 docker-ce-18.06.1.ce-3.el7.x86_64.rpm     
+-安装
+yum -y install docker-ce-18.06.1.ce-3.el7.x86_64.rpm        
+
+-检查docker版本
+docker --version
+
+-启动 Docker 后台服务
+sudo systemctl start docker
+sudo systemctl enable docker
+
+
+4 安装docker-compass
+curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+--或 cp ~/fabric-deploy/soft/docker-compose /usr/local/bin/
+chmod +x /usr/local/bin/docker-compose
+docker-compose --version
+#docker-compose version 1.22.0
+
+
+
+5 安装go语言
+fabric要求go版本大于等于1.10
+-下载
+wget https://studygolang.com/dl/golang/go1.10.3.linux-amd64.tar.gz
+--或 cd ~/fabric-deploy/soft
+tar -C /usr/local  -xzf go1.10.3.linux-amd64.tar.gz
+mkdir -p /home/gopath
+
+--设置GOPATH, 这里编辑全局环境变量 
+vi /etc/profile
+^^^^^^^^^^^^^^
+export GOROOT=/usr/local/go
+export GOPATH=/home/gopath
+export PATH=$PATH:$GOROOT/bin
+^^^^^^^^^^^^^^
+
+source /etc/profile
+
+
+--验证下是否生效
+echo $GOPATH
+go version
+
+
+6 时间同步
+yum install ntpdate
+ntpdate us.pool.ntp.org
+hwclock -w
+
+
+#### docker images 下载
+1 下载脚本 (需翻墙)   该脚本会根据环境下载镜像
+wget https://goo.gl/6wtTN5
+
+2 修改脚本 bootstrap.sh 
+export VERSION=1.1.0
+
+3 单独下载镜像
+docker pull hyperledger/fabric-javaenv:x86_64-1.1.0
+docker pull hyperledger/fabric-ccenv:x86_64-1.1.0
+docker pull hyperledger/fabric-baseos:x86_64-0.4.6
+
+4 执行脚本(下载较全面镜像)
+chmod u+x bootstrap.sh
+./bootstrap.sh bash 
+
+
+
+#### 虚拟机复制 111 112 113 
+1 复制虚拟机
+ 选择虚拟机 --> 右键克隆
+
+2 生成新的mac
+  选择复制后的虚拟机 --> 网络设置 --> MAC地址
+
+3 修改网络配置
+vi /etc/sysconfig/network-scripts/ifcfg-ens33
+修改
+HWADDR=00:0C:29:F8:6C:60（这个可以在网络适配器查看）
+IPADDR=192.168.2.100  #设置IP地址
+
+4 修改配置rules(可不操作)
+#rm /etc/udev/rules.d/70-persistent-net.rules
+
+5 修改配置 vi /etc/hosts
+^^^^^^^^^^^^^^
+192.168.2.110 fabric110  
+^^^^^^^^^^^^^^
+
+
+6 重启网络
+service network restart 
+
+7 清理iptables
+iptables -F
+

@@ -1,0 +1,22 @@
+--192.168.2.10
+
+1 启动链：
+ansible-playbook -i inventories/example.com/hosts -u root playbooks/manage_start.yml
+
+
+
+2 停止链：
+ansible-playbook -i inventories/example.com/hosts -u root playbooks/manage_stop.yml
+
+
+
+3 清空链上所有数据：
+ansible-playbook -i inventories/example.com/hosts -u root playbooks/manage_rebuild.yml
+
+
+
+4 销毁链：
+ansible-playbook -i inventories/example.com/hosts -u root playbooks/manage_destroy.yml
+
+
+

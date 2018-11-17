@@ -1,0 +1,64 @@
+
+1 规划
+主服务器：192.168.2.201 端口：6379
+从服务器：192.178.2.202 端口：6379
+
+2 redis 下载安装
+--安装依赖
+yum install -y gcc-c++ tcl
+
+--解压编译
+tar -zxvf redis-3.2.10.tar.gz -C /usr/local/
+cd /usr/local/redis-3.2.10
+make && make install
+
+
+3 修改配置
+--192.168.2.201 
+mkdir /usr/local/redis
+cp redis.conf master.conf 
+vi master.conf
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+daemonize yes
+protected-mode no
+dir /usr/local/redis/
+#bind 127.0.0.1
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+--192.168.2.202
+cp redis.conf slave.conf 
+vi slave.conf
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+daemonize yes
+protected-mode no
+dir /usr/local/redis-3.2.10/
+slaveof 192.168.2.201 6379  
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+4 启动redis
+--192.168.2.201 
+cd /usr/local/redis-3.2.10
+redis-server master.conf
+
+--192.168.2.202 
+cd /usr/local/redis-3.2.10
+redis-server slave.conf
+
+
+5 客户端测试链接                                                                                   
+--192.168.2.201
+redis-cli -h 192.168.2.201 -p 6379
+127.0.0.1:6379> info replication
+127.0.0.1:6379> set hello "hello world!"
+
+--192.168.2.202
+redis-cli -h 192.168.2.201 -p 6379
+127.0.0.1:6379> info replication
+127.0.0.1:6379> get hello
+
+
+
+
+

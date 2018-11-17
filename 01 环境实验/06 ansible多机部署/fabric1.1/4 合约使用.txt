@@ -1,0 +1,48 @@
+#### 合约初始化
+
+1 进入member1的管理员目录，对peer0.member1.example.com进行操作：
+
+cd /opt/app/fabric/cli/user/member1.example.com/Admin-peer0.member1.example.com/
+//先获取合约代码，可能会比较慢，拉取代码比较耗时
+go get github.com/lijiaocn/fabric-chaincode-example/demo
+//安装合约
+./3_install_chaincode.sh
+//查看已经安装的合约
+./peer.sh chaincode list --installed
+//合约实例化，只需要实例化一次
+./4_instantiate_chaincode.sh
+
+
+
+
+
+#### Peer上部署合约
+//peer1.member1.example.com
+//先获取合约代码，可能会比较慢，拉取代码比较耗时
+go get github.com/lijiaocn/fabric-chaincode-example/demo
+cd /opt/app/fabric/cli/user/member1.example.com/Admin-peer1.member1.example.com/
+./3_install_chaincode.sh
+
+
+//peer0.member2.example.com
+//先获取合约代码，可能会比较慢，拉取代码比较耗时
+go get github.com/lijiaocn/fabric-chaincode-example/demo
+cd /opt/app/fabric/cli/user/member2.example.com/Admin-peer0.member2.example.com/
+./3_install_chaincode.sh
+
+
+
+
+#### 调用合约，写数据
+--任意一台机器
+./6_invoke_chaincode.sh
+
+
+
+#### 调用合约，查数据
+
+./5_query_chaincode.sh
+
+
+
+

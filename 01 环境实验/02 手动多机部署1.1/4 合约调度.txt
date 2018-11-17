@@ -1,0 +1,145 @@
+#### 中途重新部署 清理历史数据
+rm -rf /opt/app/fabric/orderer/data
+rm -rf /opt/app/fabric/peer/data
+
+#### 创建channel
+cd ~/fabric-deploy/
+
+
+--生成channel文件
+ ./bin/configtxgen -profile TwoOrgsChannel -outputCreateChannelTx mychannel.tx -channelID mychannel
+
+
+--为每个组织的peer生成anchor
+./bin/configtxgen -profile TwoOrgsChannel -outputAnchorPeersUpdate Org1MSPanchors.tx -channelID mychannel -asOrg Org1MSP
+./bin/configtxgen -profile TwoOrgsChannel -outputAnchorPeersUpdate Org2MSPanchors.tx -channelID mychannel -asOrg Org2MSP
+
+
+--将验证orderer.example.com的根证书复制到用户目录
+cp certs/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem  Admin\@org1.example.com/
+cp certs/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem  User1\@org1.example.com/
+cp certs/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem  Admin\@org2.example.com/
+cp certs/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem  User1\@org2.example.com/
+
+
+
+
+cd  Admin\@org1.example.com
+--创建channel
+./useAdmin0Org1.sh channel create -o orderer.example.com:7050 -c mychannel -f ../mychannel.tx --tls true --cafile tlsca.example.com-cert.pem
+--将peer加入channel
+./useAdmin0Org1.sh channel join -b mychannel.block
+./useAdmin1Org1.sh channel join -b mychannel.block
+./useAdmin0Org1.sh channel list
+./useAdmin0Org1.sh channel update -o orderer.example.com:7050 -c mychannel -f ../Org1MSPanchors.tx --tls true --cafile ./tlsca.example.com-cert.pem
+--拷贝 mychannel.block 到 org2
+cp mychannel.block ../Admin\@org2.example.com/
+cd ..
+
+
+
+cd  Admin\@org2.example.com
+--将peer加入channel
+./useAdmin0Org2.sh channel join -b mychannel.block
+./useAdmin1Org2.sh channel join -b mychannel.block
+./useAdmin0Org2.sh channel list
+./useAdmin0Org2.sh channel update -o orderer.example.com:7050 -c mychannel -f ../Org2MSPanchors.tx --tls true --cafile ./tlsca.example.com-cert.pem
+cd ..
+
+
+####  合约安装
+cd ~/fabric-deploy/
+
+--下载合约
+go get github.com/lijiaocn/fabric-chaincode-example/demo
+
+
+
+--合约打包
+cd Admin\@org1.example.com/
+./useAdmin0Org1.sh chaincode package demo-pack.out -n demo -v 0.0.1 -s -S -p github.com/lijiaocn/fabric-chaincode-example/demo
+./useAdmin0Org1.sh chaincode signpackage demo-pack.out signed-demo-pack.out
+--安装合约
+./useAdmin0Org1.sh chaincode install ./signed-demo-pack.out
+--查看已安装合约
+./useAdmin0Org1.sh chaincode list   --installed
+--安装合约
+./useAdmin1Org1.sh chaincode install ./signed-demo-pack.out
+--查看已安装合约
+./useAdmin1Org1.sh chaincode list   --installed
+--复制到org2
+cp signed-demo-pack.out  ../Admin\@org2.example.com/
+
+
+
+
+cd ../Admin\@org1.example.com/
+--安装合约
+./useAdmin0Org2.sh chaincode install ./signed-demo-pack.out
+--查看已安装合约
+./useAdmin0Org2.sh chaincode list   --installed
+--安装合约
+./useAdmin1Org2.sh chaincode install ./signed-demo-pack.out
+--查看已安装合约
+./useAdmin1Org2.sh chaincode list   --installed
+
+
+
+
+####  合约初始化
+
+--合约初始化（需要且只需要进行一次初始化，只能由签署合约的用户进行初始化）
+cd Admin\@org1.example.com/
+./useAdmin0Org1.sh chaincode instantiate -o orderer.example.com:7050 --tls true --cafile ./tlsca.example.com-cert.pem -C mychannel -n demo -v 0.0.1 -c '{"Args":["init"]}' -P "OR('Org1MSP.member','Org2MSP.member')"
+
+
+
+####  合约调用
+--合约调用（更新）
+cd Admin\@org2.example.com/
+./useAdmin0Org2.sh chaincode invoke -o orderer.example.com:7050  --tls true --cafile ./tlsca.example.com-cert.pem -C mychannel -n demo -c '{"Args":["write","key1","aaabbb"]}'
+
+
+--合约调用2
+
+cd Admin\@org1.example.com/
+./useAdmin0Org1.sh chaincode query -C mychannel -n demo -c '{"Args":["query","key1"]}'
+./useAdmin1Org1.sh chaincode query -C mychannel -n demo -c '{"Args":["query","key1"]}'
+
+
+cd Admin\@org2.example.com/
+./useAdmin0Org2.sh chaincode query -C mychannel -n demo -c '{"Args":["query","key1"]}'
+./useAdmin1Org2.sh chaincode query -C mychannel -n demo -c '{"Args":["query","key1"]}'
+
+
+cd User1\@org1.example.com/
+./useUser0Org1.sh chaincode query -C mychannel -n demo -c '{"Args":["query","key1"]}'
+./useUser1Org1.sh chaincode query -C mychannel -n demo -c '{"Args":["query","key1"]}'
+
+cd User1\@org2.example.com/
+./useUser0Org2.sh chaincode query -C mychannel -n demo -c '{"Args":["query","key1"]}'
+./useUser1Org2.sh chaincode query -C mychannel -n demo -c '{"Args":["query","key1"]}'
+
+
+
+####  更新合约（只能Admin用户）
+--更新合约
+cd Admin\@org1.example.com/
+./useAdmin0Org1.sh chaincode package demo-pack-2.out -n demo -v 0.0.2 -s -S -p github.com/lijiaocn/fabric-chaincode-example/demo
+./useAdmin0Org1.sh chaincode signpackage demo-pack-2.out signed-demo-pack-2.out
+
+--再次安装合约（需要在每个peer上单独安装）
+./useAdmin0Org1.sh chaincode install ./signed-demo-pack-2.out
+
+
+
+####  合约调用2
+--更新合约（更新合约 无需初始化）
+./useAdmin0Org1.sh chaincode upgrade -o orderer.example.com:7050 --tls true --cafile ./tlsca.example.com-cert.pem -C mychannel -n demo -v 0.0.2 -c '{"Args":["init"]}' -P "OR('Org1MSP.member','Org2MSP.member')"
+
+
+
+
+
+
+
