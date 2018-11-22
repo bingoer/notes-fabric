@@ -17,6 +17,10 @@ firewall-cmd --reload
  scp -r kafka_2.10-0.8.1.1/ slaver1:/home/hadoop/
 
 
+#查看磁盘
+df -h 
+du -sh *
+
 
 
 #后台运行
@@ -30,5 +34,6 @@ firewall-cmd --reload
 yum install ntpdate
 ntpdate us.pool.ntp.org
 hwclock -w
+
 
 
