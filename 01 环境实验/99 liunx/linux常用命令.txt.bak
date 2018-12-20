@@ -1,0 +1,38 @@
+# 防火墙
+查看防火墙运行状态:   firewall-cmd --state
+关闭防火墙:   systemctl stop firewalld.service
+永久关闭防火墙:  systemctl disable firewalld.service
+重启网关  service network restart
+清理iptables  iptables -F
+
+--关闭防火墙
+firewall-cmd --add-port=7051/tcp --permanent
+firewall-cmd --add-port=9092/tcp --permanent
+firewall-cmd --reload
+
+#网络
+设置网络 vi /etc/sysconfig/network-scripts/ifcfg-ens33
+
+远程复制
+ scp -r kafka_2.10-0.8.1.1/ slaver1:/home/hadoop/
+
+
+#查看磁盘
+du -sh *
+
+
+
+#后台运行
+1>/dev/null：代表标准输入到这个目录；
+2>&1：代表标准输出也到这个目录下面；
+&：代表这个是后台运行；
+
+
+
+时间同步
+yum install ntpdate
+ntpdate us.pool.ntp.org
+hwclock -w
+
+
+
